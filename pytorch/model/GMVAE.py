@@ -229,7 +229,7 @@ class GMVAE:
     if return_loss:
       return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, nmi
     else:
-      return accuracy, nmi
+      return accuracy, nmi, predicted_labels
 
 
   def train(self, train_loader, val_loader):
