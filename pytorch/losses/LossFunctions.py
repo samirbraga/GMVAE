@@ -106,9 +106,9 @@ class LossFunctions:
         log_q = F.log_softmax(logits, dim=-1)
         return -torch.mean(torch.sum(targets * log_q, dim=-1))
 
-    def blocking_loss(self, logits, true_labels):
+    def blocking_loss(self, num_blocks, logits, true_labels):
         predicted_labels = torch.argmax(logits, dim=1)
-        allocation_matrix = build_allocation_matrix(predicted_labels, true_labels)
+        allocation_matrix = build_allocation_matrix(num_blocks, true_labels, predicted_labels)
         acc = torch.mean(torch.max(allocation_matrix / allocation_matrix.sum(axis=1, keepdims=True), dim=1).values)
         return 1 - acc
 

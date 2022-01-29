@@ -15,13 +15,18 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.metrics.cluster import normalized_mutual_info_score
 
 
-def build_allocation_matrix(entity_labels, block_labels):
-    num_entities = entity_labels.max() + 1
-    num_blocks = block_labels.max() + 1
+def _index_of(tensor, elem):
+    return (tensor == elem).nonzero(as_tuple=True)[0]
+
+
+def build_allocation_matrix(num_blocks, entity_labels, block_labels):
+    indexed_entity_labels = torch.unique(entity_labels)
+    num_entities = len(indexed_entity_labels)
     allocation_matrix = torch.zeros((num_entities, num_blocks))
 
     for entity, predicted_block in zip(entity_labels, block_labels):
-        allocation_matrix[entity, predicted_block] += 1
+        entity_index = _index_of(indexed_entity_labels, entity)
+        allocation_matrix[entity_index, predicted_block] += 1
 
     return allocation_matrix
 
@@ -45,13 +50,13 @@ class Metrics:
         assert Y_pred.size == Y.size
         return normalized_mutual_info_score(Y_pred, Y, average_method='arithmetic')
 
-    def accuracy_score(self, Y_pred, Y):
-        allocation_matrix = build_allocation_matrix(Y_pred, Y)
-        acc = (allocation_matrix / allocation_matrix.sum(axis=1, keepdims=True)).max(axis=1).mean()
+    def accuracy_score(self, num_blocks, block_labels, entity_labels):
+        allocation_matrix = build_allocation_matrix(num_blocks, entity_labels, block_labels)
+        acc = torch.mean(torch.max(allocation_matrix / allocation_matrix.sum(axis=1, keepdims=True), dim=1).values)
         return acc
 
-    def dispersal_score(self, Y_pred, Y):
-        allocation_matrix = build_allocation_matrix(Y_pred, Y)
+    def dispersal_score(self, num_blocks, block_labels, entity_labels):
+        allocation_matrix = build_allocation_matrix(num_blocks, entity_labels, block_labels)
         num_blocks = allocation_matrix.shape[1]
         allocation_matrix = allocation_matrix / allocation_matrix.sum(axis=1, keepdims=True)
         total = allocation_matrix.sum()
@@ -59,7 +64,7 @@ class Metrics:
         perfect_fit_rate = 1 / num_blocks
         errors = (incidences / total) - perfect_fit_rate
         max_error = (num_blocks - 1) * 2 * perfect_fit_rate
-        return 1 - np.abs(errors).sum() / max_error
+        return 1 - torch.abs(errors).sum() / max_error
 
     def nmi(self, Y_pred, Y):
         Y_pred, Y = np.array(Y_pred), np.array(Y)

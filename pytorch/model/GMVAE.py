@@ -78,7 +78,7 @@ class GMVAE:
         loss_cat = -self.losses.entropy(logits, prob_cat) - np.log(0.1)
 
         # blocking loss
-        blocking_loss = self.losses.blocking_loss(logits, labels)
+        blocking_loss = self.losses.blocking_loss(self.num_classes, logits, labels)
 
         # total loss
         loss_total = self.w_rec * loss_rec + self.w_gauss * loss_gauss + self.w_cat * loss_cat + self.w_blocking * blocking_loss
@@ -155,12 +155,12 @@ class GMVAE:
         cat_loss /= num_batches
 
         # concat all true and predicted labels
-        true_labels = torch.cat(true_labels_list, dim=0).cpu().numpy()
-        predicted_labels = torch.cat(predicted_labels_list, dim=0).cpu().numpy()
+        true_labels = torch.cat(true_labels_list, dim=0)
+        predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
         # compute metrics
-        accuracy = 100.0 * self.metrics.accuracy_score(predicted_labels, true_labels)
-        dispersal = 100.0 * self.metrics.dispersal_score(predicted_labels, true_labels)
+        accuracy = 100.0 * self.metrics.accuracy_score(self.num_classes, predicted_labels, true_labels)
+        dispersal = 100.0 * self.metrics.dispersal_score(self.num_classes, predicted_labels, true_labels)
 
         return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
 
@@ -221,12 +221,12 @@ class GMVAE:
             cat_loss /= num_batches
 
         # concat all true and predicted labels
-        true_labels = torch.cat(true_labels_list, dim=0).cpu().numpy()
-        predicted_labels = torch.cat(predicted_labels_list, dim=0).cpu().numpy()
+        true_labels = torch.cat(true_labels_list, dim=0)
+        predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
         # compute metrics
-        accuracy = 100.0 * self.metrics.accuracy_score(predicted_labels, true_labels)
-        dispersal = 100.0 * self.metrics.dispersal_score(predicted_labels, true_labels)
+        accuracy = 100.0 * self.metrics.accuracy_score(self.num_classes, predicted_labels, true_labels)
+        dispersal = 100.0 * self.metrics.dispersal_score(self.num_classes, predicted_labels, true_labels)
 
         if return_loss:
             return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
