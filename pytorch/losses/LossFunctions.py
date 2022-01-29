@@ -107,7 +107,7 @@ class LossFunctions:
         return -torch.mean(torch.sum(targets * log_q, dim=-1))
 
     def blocking_loss(self, logits, true_labels):
-        predicted_labels = torch.argmax(logits, dim=1).numpy()
+        predicted_labels = torch.argmax(logits, dim=1).cpu().numpy()
         allocation_matrix = build_allocation_matrix(predicted_labels, true_labels.numpy())
         acc = (allocation_matrix / allocation_matrix.sum(axis=1, keepdims=True)).max(axis=1).mean()
         return 1 - acc
