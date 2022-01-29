@@ -15,26 +15,14 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.metrics.cluster import normalized_mutual_info_score
 
 
-def build_allocation_matrix(Y_pred, Y):
-    entities_by_cluster = {}
-    for predicted_label, true_label in zip(Y_pred, Y):
-        if predicted_label not in entities_by_cluster:
-            entities_by_cluster[predicted_label] = []
-        entities_by_cluster[predicted_label].append(true_label)
-    count_by_cluster = {}
-    for cluster, entities in entities_by_cluster.items():
-        count_by_cluster[cluster] = len(entities)
-    for cluster, entities in entities_by_cluster.items():
-        entities_by_cluster[cluster] = Counter(entities)
-    entities_cluster_count = {}
-    for cluster, counts in entities_by_cluster.items():
-        for entity, count in counts.items():
-            if entity not in entities_cluster_count:
-                entities_cluster_count[entity] = {}
-            if cluster not in entities_cluster_count[entity]:
-                entities_cluster_count[entity][cluster] = 0
-            entities_cluster_count[entity][cluster] += count
-    allocation_matrix = pd.DataFrame(entities_cluster_count).transpose().fillna(0).to_numpy()
+def build_allocation_matrix(entity_labels, block_labels):
+    num_entities = entity_labels.max() + 1
+    num_blocks = block_labels.max() + 1
+    allocation_matrix = torch.zeros((num_entities, num_blocks))
+
+    for entity, predicted_block in zip(entity_labels, block_labels):
+        allocation_matrix[entity, predicted_block] += 1
+
     return allocation_matrix
 
 
