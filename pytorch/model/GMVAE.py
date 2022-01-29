@@ -31,6 +31,7 @@ class GMVAE:
         self.w_cat = args.w_categ
         self.w_gauss = args.w_gauss
         self.w_rec = args.w_rec
+        self.w_blocking = args.w_blocking
         self.rec_type = args.rec_type
 
         self.num_classes = args.num_classes
@@ -52,7 +53,7 @@ class GMVAE:
         if self.cuda:
             self.network = self.network.cuda()
 
-    def unlabeled_loss(self, data, out_net):
+    def unlabeled_loss(self, data, labels, out_net):
         """Method defining the loss functions derived from the variational lower bound
         Args:
             data: (array) corresponding array containing the input data
@@ -76,8 +77,11 @@ class GMVAE:
         # categorical loss
         loss_cat = -self.losses.entropy(logits, prob_cat) - np.log(0.1)
 
+        # blocking loss
+        blocking_loss = self.losses.blocking_loss(logits, labels)
+
         # total loss
-        loss_total = self.w_rec * loss_rec + self.w_gauss * loss_gauss + self.w_cat * loss_cat
+        loss_total = self.w_rec * loss_rec + self.w_gauss * loss_gauss + self.w_cat * loss_cat + self.w_blocking * blocking_loss
 
         # obtain predictions
         _, predicted_labels = torch.max(logits, dim=1)
@@ -124,7 +128,7 @@ class GMVAE:
 
             # forward call
             out_net = self.network(data, self.gumbel_temp, self.hard_gumbel)
-            unlab_loss_dic = self.unlabeled_loss(data, out_net)
+            unlab_loss_dic = self.unlabeled_loss(data, labels, out_net)
             total = unlab_loss_dic['total']
 
             # accumulate values
@@ -155,10 +159,10 @@ class GMVAE:
         predicted_labels = torch.cat(predicted_labels_list, dim=0).cpu().numpy()
 
         # compute metrics
-        accuracy = 100.0 * self.metrics.cluster_acc(predicted_labels, true_labels)
-        nmi = 100.0 * self.metrics.nmi(predicted_labels, true_labels)
+        accuracy = 100.0 * self.metrics.accuracy_score(predicted_labels, true_labels)
+        dispersal = 100.0 * self.metrics.dispersal_score(predicted_labels, true_labels)
 
-        return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, nmi
+        return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
 
     def test(self, data_loader, return_loss=False):
         """Test the model with new data
@@ -194,7 +198,7 @@ class GMVAE:
 
                 # forward call
                 out_net = self.network(data, self.gumbel_temp, self.hard_gumbel)
-                unlab_loss_dic = self.unlabeled_loss(data, out_net)
+                unlab_loss_dic = self.unlabeled_loss(data, labels, out_net)
 
                 # accumulate values
                 total_loss += unlab_loss_dic['total'].item()
@@ -221,13 +225,13 @@ class GMVAE:
         predicted_labels = torch.cat(predicted_labels_list, dim=0).cpu().numpy()
 
         # compute metrics
-        accuracy = 100.0 * self.metrics.cluster_acc(predicted_labels, true_labels)
-        nmi = 100.0 * self.metrics.nmi(predicted_labels, true_labels)
+        accuracy = 100.0 * self.metrics.accuracy_score(predicted_labels, true_labels)
+        dispersal = 100.0 * self.metrics.dispersal_score(predicted_labels, true_labels)
 
         if return_loss:
-            return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, nmi
+            return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
         else:
-            return accuracy, nmi, predicted_labels
+            return accuracy, dispersal
 
     def train(self, train_loader, val_loader):
         """Train the model
@@ -244,9 +248,9 @@ class GMVAE:
         train_history_nmi, val_history_nmi = [], []
 
         for epoch in range(1, self.num_epochs + 1):
-            train_loss, train_rec, train_gauss, train_cat, train_acc, train_nmi = self.train_epoch(optimizer,
+            train_loss, train_rec, train_gauss, train_cat, train_acc, train_disp = self.train_epoch(optimizer,
                                                                                                    train_loader)
-            val_loss, val_rec, val_gauss, val_cat, val_acc, val_nmi = self.test(val_loader, True)
+            val_loss, val_rec, val_gauss, val_cat, val_acc, val_disp = self.test(val_loader, True)
 
             # if verbose then print specific information about training
             if self.verbose == 1:
@@ -256,12 +260,12 @@ class GMVAE:
                 print("Valid - REC: %.5lf;  Gauss: %.5lf;  Cat: %.5lf;" % \
                       (val_rec, val_gauss, val_cat))
                 print(
-                    "Accuracy=Train: %.5lf; Val: %.5lf   NMI=Train: %.5lf; Val: %.5lf   Total Loss=Train: %.5lf; Val: %.5lf" % \
-                    (train_acc, val_acc, train_nmi, val_nmi, train_loss, val_loss))
+                    "Accuracy=Train: %.5lf; Val: %.5lf   Dispersal=Train: %.5lf; Val: %.5lf   Total Loss=Train: %.5lf; Val: %.5lf" % \
+                    (train_acc, val_acc, train_disp, val_disp, train_loss, val_loss))
             else:
                 print(
-                    '(Epoch %d / %d) Train_Loss: %.3lf; Val_Loss: %.3lf   Train_ACC: %.3lf; Val_ACC: %.3lf   Train_NMI: %.3lf; Val_NMI: %.3lf' % \
-                    (epoch, self.num_epochs, train_loss, val_loss, train_acc, val_acc, train_nmi, val_nmi))
+                    '(Epoch %d / %d) Train_Loss: %.3lf; Val_Loss: %.3lf   Train_ACC: %.3lf; Val_ACC: %.3lf   Train_Dispersal: %.3lf; Val_Dispersal: %.3lf' % \
+                    (epoch, self.num_epochs, train_loss, val_loss, train_acc, val_acc, train_disp, val_disp))
 
             # decay gumbel temperature
             if self.decay_temp == 1:
@@ -271,8 +275,8 @@ class GMVAE:
 
             train_history_acc.append(train_acc)
             val_history_acc.append(val_acc)
-            train_history_nmi.append(train_nmi)
-            val_history_nmi.append(val_nmi)
+            train_history_nmi.append(train_disp)
+            val_history_nmi.append(val_disp)
         return {'train_history_nmi': train_history_nmi, 'val_history_nmi': val_history_nmi,
                 'train_history_acc': train_history_acc, 'val_history_acc': val_history_acc}
 

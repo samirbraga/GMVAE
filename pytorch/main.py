@@ -35,13 +35,13 @@ parser.add_argument('--dataset', type=str, choices=['mnist'],
 parser.add_argument('--seed', type=int, default=0, help='random seed (default: 0)')
 
 ## GPU
-parser.add_argument('--cuda', type=int, default=1,
+parser.add_argument('--cuda', type=int, default=0,
                     help='use of cuda (default: 1)')
 parser.add_argument('--gpuID', type=int, default=0,
                     help='set gpu id to use (default: 0)')
 
 ## Training
-parser.add_argument('--epochs', type=int, default=100,
+parser.add_argument('--epochs', type=int, default=50,
                     help='number of total epochs to run (default: 200)')
 parser.add_argument('--batch_size', default=64, type=int,
                     help='mini-batch size (default: 64)')
@@ -83,6 +83,8 @@ parser.add_argument('--w_gauss', default=1, type=float,
                     help='weight of gaussian loss (default: 1)')
 parser.add_argument('--w_categ', default=1, type=float,
                     help='weight of categorical loss (default: 1)')
+parser.add_argument('--w_blocking', default=100, type=float,
+                    help='weight of blocking loss (default: 4)')
 parser.add_argument('--w_rec', default=1, type=float,
                     help='weight of reconstruction loss (default: 1)')
 parser.add_argument('--rec_type', type=str, choices=['bce', 'mse'],
@@ -140,18 +142,18 @@ else:
                                              sampler=SubsetRandomSampler(val_indices))
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size_val, shuffle=False)
 
-## Calculate flatten size of each input data
-args.input_size = np.prod(train_dataset[0][0].size())
-print(args.input_size)
-#########################################################
-## Train and Test Model
-#########################################################
-gmvae = GMVAE(args)
+if __name__ == "__main__":
+    ## Calculate flatten size of each input data
+    args.input_size = np.prod(train_dataset[0][0].size())
+    print(args.input_size)
+    #########################################################
+    ## Train and Test Model
+    #########################################################
+    gmvae = GMVAE(args)
 
-## Training Phase
-history_loss = gmvae.train(train_loader, val_loader)
+    ## Training Phase
+    history_loss = gmvae.train(train_loader, val_loader)
 
-## Testing Phase
-accuracy, nmi = gmvae.test(test_loader)
-print("Testing phase...")
-print("Accuracy: %.5lf, NMI: %.5lf" % (accuracy, nmi))
+    ## Testing Phase
+    accuracy, dispersal = gmvae.test(test_loader)
+    gmvae.save("~/model-test")
