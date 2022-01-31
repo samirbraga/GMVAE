@@ -48,7 +48,6 @@ class GMVAE:
 
         self.network = GMVAENet(self.input_size, self.gaussian_size, self.num_classes)
         self.losses = LossFunctions()
-        self.metrics = Metrics()
 
         if self.cuda:
             self.network = self.network.cuda()
