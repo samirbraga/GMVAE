@@ -13,7 +13,7 @@ import numpy as np
 from torch import nn
 from torch.nn import functional as F
 
-from metrics.Metrics import build_allocation_matrix
+from metrics.metrics import build_allocation_matrix
 
 
 class LossFunctions:

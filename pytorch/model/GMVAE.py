@@ -12,7 +12,7 @@ from torch import nn, optim
 from torch.utils.data.sampler import SubsetRandomSampler
 from networks.Networks import *
 from losses.LossFunctions import *
-from metrics.Metrics import *
+from metrics.metrics import *
 import matplotlib.pyplot as plt
 
 
@@ -159,8 +159,8 @@ class GMVAE:
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
         # compute metrics
-        accuracy = 100.0 * self.metrics.accuracy_score(self.num_classes, predicted_labels, true_labels)
-        dispersal = 100.0 * self.metrics.dispersal_score(self.num_classes, predicted_labels, true_labels)
+        accuracy = 100.0 * accuracy_score(self.num_classes, predicted_labels, true_labels)
+        dispersal = 100.0 * dispersal_score(self.num_classes, predicted_labels, true_labels)
 
         return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
 
@@ -225,8 +225,8 @@ class GMVAE:
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
         # compute metrics
-        accuracy = 100.0 * self.metrics.accuracy_score(self.num_classes, predicted_labels, true_labels)
-        dispersal = 100.0 * self.metrics.dispersal_score(self.num_classes, predicted_labels, true_labels)
+        accuracy = 100.0 * accuracy_score(self.num_classes, predicted_labels, true_labels)
+        dispersal = 100.0 * dispersal_score(self.num_classes, predicted_labels, true_labels)
 
         if return_loss:
             return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
