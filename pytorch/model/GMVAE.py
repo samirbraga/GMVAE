@@ -231,7 +231,7 @@ class GMVAE:
         if return_loss:
             return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
         else:
-            return accuracy, dispersal
+            return accuracy.item(), dispersal.item(), predicted_labels.cpu().numpy()
 
     def train(self, train_loader, val_loader):
         """Train the model
@@ -404,4 +404,4 @@ class GMVAE:
         self.network.save(path)
 
     def load(self, path):
-        self.network.load(path)
+        self.network.load(path, is_cuda=self.cuda)

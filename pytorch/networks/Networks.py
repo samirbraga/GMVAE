@@ -18,8 +18,11 @@ class StorableModel(nn.Module):
     def save(self, path):
         torch.save(self.state_dict(), path)
 
-    def load(self, path):
-        self.load_state_dict(torch.load(path))
+    def load(self, path, is_cuda):
+        if is_cuda:
+            self.load_state_dict(torch.load(path))
+        else:
+            self.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
 
 
 # Inference Network

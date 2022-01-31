@@ -152,8 +152,10 @@ if __name__ == "__main__":
     gmvae = GMVAE(args)
 
     ## Training Phase
-    history_loss = gmvae.train(train_loader, val_loader)
+    # history_loss = gmvae.train(train_loader, val_loader)
+
+    gmvae.load("~/model-test")
 
     ## Testing Phase
-    accuracy, dispersal = gmvae.test(test_loader)
-    gmvae.save("~/model-test")
+    accuracy, dispersal, predicted_labels = gmvae.test(test_loader)
+    print(accuracy, dispersal, predicted_labels)
