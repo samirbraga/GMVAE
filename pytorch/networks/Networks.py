@@ -159,10 +159,10 @@ class GMVAENet(StorableModel):
         self.inference.save(inference_net_path)
         self.generative.save(generative_net_path)
 
-    def load(self, path):
+    def load(self, path, is_cuda):
         # gmvae_net_path = path + "/gmvae"
         inference_net_path = path + "/inference"
         generative_net_path = path + "/generative"
         # self.load(gmvae_net_path)
-        self.inference.load(inference_net_path)
-        self.generative.load(generative_net_path)
+        self.inference.load(inference_net_path, is_cuda)
+        self.generative.load(generative_net_path, is_cuda)
