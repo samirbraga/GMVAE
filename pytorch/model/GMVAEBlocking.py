@@ -159,7 +159,7 @@ class GMVAEBlocking:
         true_labels = torch.cat(true_labels_list, dim=0)
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
-        self.entity_to_block = blocks_by_entities(self.num_classes, predicted_labels, true_labels)
+        self.entity_to_block = blocks_by_entities(self.num_classes, true_labels, predicted_labels)
 
         # compute metrics
         reachy = 100.0 * reachability_score(self.num_classes, predicted_labels, true_labels)
@@ -227,7 +227,7 @@ class GMVAEBlocking:
         true_labels = torch.cat(true_labels_list, dim=0)
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
-        test_entity_to_block = blocks_by_entities(self.num_classes, predicted_labels, true_labels)
+        test_entity_to_block = blocks_by_entities(self.num_classes, true_labels, predicted_labels)
 
         # compute metrics
         reachy = 100.0 * reachability_score(self.num_classes, predicted_labels, true_labels)
