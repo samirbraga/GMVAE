@@ -15,147 +15,131 @@ import os
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data.sampler import SubsetRandomSampler
-import torch.utils.data
-from model.GMVAE import *
+import torch.utils.data as utils_data
+from model.GMVAEBlocking import *
 
 matplotlib.use('agg')
 
-#########################################################
-## Input Parameters
-#########################################################
-parser = argparse.ArgumentParser(description='PyTorch Implementation of DGM Clustering')
 
-## Used only in notebooks
-parser.add_argument('-f', '--file',
-                    help='Path for input file. First line should contain number of lines to search in')
+class Args(dict):
+    __slots__ = ()
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
 
-## Dataset
-parser.add_argument('--dataset', type=str, choices=['mnist'],
-                    default='mnist', help='dataset (default: mnist)')
-parser.add_argument('--seed', type=int, default=0, help='random seed (default: 0)')
+default_args = {
+    'seed': 1,
 
-## GPU
-parser.add_argument('--cuda', type=int, default=0,
-                    help='use of cuda (default: 1)')
-parser.add_argument('--gpuID', type=int, default=0,
-                    help='set gpu id to use (default: 0)')
+    ## GPU
+    'cuda': 0,
+    'gpuID': 0,
 
-## Training
-parser.add_argument('--epochs', type=int, default=50,
-                    help='number of total epochs to run (default: 200)')
-parser.add_argument('--batch_size', default=64, type=int,
-                    help='mini-batch size (default: 64)')
-parser.add_argument('--batch_size_val', default=200, type=int,
-                    help='mini-batch size of validation (default: 200)')
-parser.add_argument('--learning_rate', default=1e-3, type=float,
-                    help='learning rate (default: 0.001)')
-parser.add_argument('--decay_epoch', default=-1, type=int,
-                    help='Reduces the learning rate every decay_epoch')
-parser.add_argument('--lr_decay', default=0.5, type=float,
-                    help='Learning rate decay for training (default: 0.5)')
+    ## Training
+    'epochs': 100,
+    'batch_size': 128,
+    'batch_size_val': 200,
+    'learning_rate': 1e-3,
+    'decay_epoch': -1,
+    'lr_decay': 0.5,
 
-## Architecture
-parser.add_argument('--num_classes', type=int, default=10,
-                    help='number of classes (default: 10)')
-parser.add_argument('--gaussian_size', default=64, type=int,
-                    help='gaussian size (default: 64)')
-parser.add_argument('--input_size', default=784, type=int,
-                    help='input size (default: 784)')
+    ## Architecture
+    'num_classes': 3,
+    'gaussian_size': 32,
+    'input_size': 784,
 
-## Partition parameters
-parser.add_argument('--train_proportion', default=1.0, type=float,
-                    help='proportion of examples to consider for training only (default: 1.0)')
+    ## Partition parameters
+    'train_proportion': 1.0,
 
-## Gumbel parameters
-parser.add_argument('--init_temp', default=1.0, type=float,
-                    help='Initial temperature used in gumbel-softmax (recommended 0.5-1.0, default:1.0)')
-parser.add_argument('--decay_temp', default=1, type=int,
-                    help='Set 1 to decay gumbel temperature at every epoch (default: 1)')
-parser.add_argument('--hard_gumbel', default=0, type=int,
-                    help='Set 1 to use the hard version of gumbel-softmax (default: 1)')
-parser.add_argument('--min_temp', default=0.5, type=float,
-                    help='Minimum temperature of gumbel-softmax after annealing (default: 0.5)')
-parser.add_argument('--decay_temp_rate', default=0.013862944, type=float,
-                    help='Temperature decay rate at every epoch (default: 0.013862944)')
+    ## Gumbel parameters
+    'init_temp': 1.0,
+    'decay_temp': 1,
+    'hard_gumbel': 0,
+    'min_temp': 0.5,
+    'decay_temp_rate': 0.013862944,
 
-## Loss function parameters
-parser.add_argument('--w_gauss', default=1, type=float,
-                    help='weight of gaussian loss (default: 1)')
-parser.add_argument('--w_categ', default=1, type=float,
-                    help='weight of categorical loss (default: 1)')
-parser.add_argument('--w_blocking', default=100, type=float,
-                    help='weight of blocking loss (default: 4)')
-parser.add_argument('--w_rec', default=1, type=float,
-                    help='weight of reconstruction loss (default: 1)')
-parser.add_argument('--rec_type', type=str, choices=['bce', 'mse'],
-                    default='bce', help='desired reconstruction loss function (default: bce)')
+    ## Loss function parameters
+    'w_gauss': 1,
+    'w_categ': 1,
+    'w_rec': 1,
+    'w_blocking': -40,
+    'rec_type': 'bce',
 
-## Others
-parser.add_argument('--verbose', default=0, type=int,
-                    help='print extra information at every epoch.(default: 0)')
-parser.add_argument('--random_search_it', type=int, default=20,
-                    help='iterations of random search (default: 20)')
+    ## Others
+    'verbose': 0
+}
 
-args = parser.parse_args()
 
-if args.cuda == 1:
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpuID)
+def get_args(**args):
+    args_dics = dict(list(default_args.items()) + list(args.items()))
+    return Args(args_dics)
+
 
 ## Random Seed
-SEED = args.seed
+SEED = default_args['seed']
 np.random.seed(SEED)
 random.seed(SEED)
 torch.manual_seed(SEED)
-if args.cuda:
-    torch.cuda.manual_seed(SEED)
+if default_args['cuda']:
+  torch.cuda.manual_seed(SEED)
+
+BASE_PATH = '/home/samir/Documents/atividades/pml/trabalho-final'
 
 #########################################################
 ## Read Data
 #########################################################
-if args.dataset == "mnist":
-    print("Loading mnist dataset...")
-    # Download or load downloaded MNIST dataset
-    train_dataset = datasets.MNIST('./mnist', train=True, download=True, transform=transforms.ToTensor())
-    test_dataset = datasets.MNIST('./mnist', train=False, transform=transforms.ToTensor())
+# text_data = pd.read_parquet(BASE_PATH + '/small_sample_wiki_links-use_emb.parquet')
+# text_data['full_context_use_emb'] = text_data['full_context_use_emb'].apply(lambda x: x[0]['values'])
+# target_map = dict([(wiki_url, index) for index, wiki_url in enumerate(text_data['wiki_url'].unique())])
+# text_data['target'] = text_data['wiki_url'].apply(lambda x: target_map[x])
+# data_target = torch.tensor(text_data['target'].values.astype(int))
+# train = torch.tensor(np.stack(text_data['full_context_use_emb'].values)).float()
+# train_dataset = utils_data.dataset.TensorDataset(train, data_target)
 
 
 #########################################################
 ## Data Partition
 #########################################################
+# def partition_dataset(n, proportion=0.8):
+#   train_num = int(n * proportion)
+#   indices = np.random.permutation(n)
+#   train_indices, val_indices = indices[:train_num], indices[train_num:]
+#   return train_indices, val_indices
+
+# we use all train dataset without partitioning
+# train_indices, val_indices = partition_dataset(len(train_dataset))
+# train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=default_args['batch_size'], shuffle=True)
+# val_loader = torch.utils.data.DataLoader(train_dataset, batch_size=default_args['batch_size_val'], sampler=SubsetRandomSampler(val_indices))
+
+print("Loading mnist dataset...")
+# Download or load downloaded MNIST dataset
+train_dataset = datasets.MNIST('./mnist', train=True, download=True, transform=transforms.ToTensor())
+test_dataset = datasets.MNIST('./mnist', train=False, transform=transforms.ToTensor())
+
 def partition_dataset(n, proportion=0.8):
-    train_num = int(n * proportion)
-    indices = np.random.permutation(n)
-    train_indices, val_indices = indices[:train_num], indices[train_num:]
-    return train_indices, val_indices
+  train_num = int(n * proportion)
+  indices = np.random.permutation(n)
+  train_indices, val_indices = indices[:train_num], indices[train_num:]
+  return train_indices, val_indices
 
-
-if args.train_proportion == 1.0:
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size_val, shuffle=False)
-    val_loader = test_loader
+if default_args['train_proportion'] == 1.0:
+  train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=default_args['batch_size'], shuffle=True)
+  test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=default_args['batch_size_val'], shuffle=False)
+  val_loader = test_loader
 else:
-    train_indices, val_indices = partition_dataset(len(train_dataset), args.train_proportion)
-    # Create data loaders for train, validation and test datasets
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size,
-                                               sampler=SubsetRandomSampler(train_indices))
-    val_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size_val,
-                                             sampler=SubsetRandomSampler(val_indices))
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size_val, shuffle=False)
+  train_indices, val_indices = partition_dataset(len(train_dataset), default_args['train_proportion'])
+  # Create data loaders for train, validation and test datasets
+  train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=default_args['batch_size'], sampler=SubsetRandomSampler(train_indices))
+  val_loader = torch.utils.data.DataLoader(train_dataset, batch_size=default_args['batch_size_val'], sampler=SubsetRandomSampler(val_indices))
+  test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=default_args['batch_size_val'], shuffle=False)
+
 
 if __name__ == "__main__":
-    ## Calculate flatten size of each input data
-    args.input_size = np.prod(train_dataset[0][0].size())
-    print(args.input_size)
-    #########################################################
-    ## Train and Test Model
-    #########################################################
-    gmvae = GMVAE(args)
+    retrain = False
+    w_blocking = 50
+    num_classes = 16
+    args = get_args(num_classes=num_classes, w_blocking=w_blocking)
+    gmvae = GMVAEBlocking(args)
+    history_loss = gmvae.train(train_loader, val_loader)
+    reachy, dispersal, accuracy, predicted_labels = gmvae.test(train_loader)
+    latent_features, true_labels = gmvae.latent_features(train_loader, True)
 
-    ## Training Phase
-    # history_loss = gmvae.train(train_loader, val_loader)
-
-    gmvae.load("~/model-test")
-
-    ## Testing Phase
-    accuracy, dispersal, predicted_labels = gmvae.test(test_loader)
-    print(accuracy, dispersal, predicted_labels)
+    print(accuracy)

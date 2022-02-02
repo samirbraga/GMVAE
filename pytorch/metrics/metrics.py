@@ -34,6 +34,15 @@ def build_allocation_matrix(num_blocks, entity_labels, block_labels):
     return allocation_matrix
 
 
+def blocks_by_entities(num_blocks, entity_labels, block_labels):
+    unique_entity_labels = torch.unique(entity_labels)
+    block_by_entity = {entity.item(): np.zeros(num_blocks) for entity in unique_entity_labels}
+    for entity, predicted_block in zip(entity_labels, block_labels):
+        block_by_entity[entity.item()][predicted_block.item()] += 1
+
+    return {entity: np.argmax(allocs) for entity, allocs in block_by_entity.items()}
+
+
 def cluster_acc(Y_pred, Y):
     Y_pred, Y = np.array(Y_pred), np.array(Y)
     assert Y_pred.size == Y.size
@@ -51,10 +60,20 @@ def nmi(Y_pred, Y):
     return normalized_mutual_info_score(Y_pred, Y, average_method='arithmetic')
 
 
-def accuracy_score(num_blocks, block_labels, entity_labels):
+def reachability_score(num_blocks, block_labels, entity_labels):
     allocation_matrix = build_allocation_matrix(num_blocks, entity_labels, block_labels)
     acc = torch.mean(torch.max(allocation_matrix / allocation_matrix.sum(axis=1, keepdims=True), dim=1).values)
     return acc
+
+
+def blocking_accuracy(true_blocking, pred_blocking):
+    total = 0
+    rits = 0
+    for entity, predicted_block in pred_blocking.items():
+        total += 1
+        if predicted_block == true_blocking[entity]:
+            rits += 1
+    return rits / total
 
 
 def dispersal_score(num_blocks, block_labels, entity_labels):

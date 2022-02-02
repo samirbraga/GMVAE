@@ -16,7 +16,7 @@ from metrics.metrics import *
 import matplotlib.pyplot as plt
 
 
-class GMVAE:
+class GMVAEBlocking:
 
     def __init__(self, args):
         self.num_epochs = args.epochs
@@ -45,6 +45,8 @@ class GMVAE:
         self.min_temp = args.min_temp
         self.decay_temp_rate = args.decay_temp_rate
         self.gumbel_temp = self.init_temp
+
+        self.entity_to_block = {}
 
         self.network = GMVAENet(self.input_size, self.gaussian_size, self.num_classes)
         self.losses = LossFunctions()
@@ -108,7 +110,7 @@ class GMVAE:
         cat_loss = 0.
         gauss_loss = 0.
 
-        accuracy = 0.
+        reachy = 0.
         nmi = 0.
         num_batches = 0.
 
@@ -157,11 +159,13 @@ class GMVAE:
         true_labels = torch.cat(true_labels_list, dim=0)
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
+        self.entity_to_block = blocks_by_entities(self.num_classes, predicted_labels, true_labels)
+
         # compute metrics
-        accuracy = 100.0 * accuracy_score(self.num_classes, predicted_labels, true_labels)
+        reachy = 100.0 * reachability_score(self.num_classes, predicted_labels, true_labels)
         dispersal = 100.0 * dispersal_score(self.num_classes, predicted_labels, true_labels)
 
-        return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
+        return total_loss, recon_loss, gauss_loss, cat_loss, reachy, dispersal
 
     def test(self, data_loader, return_loss=False):
         """Test the model with new data
@@ -180,7 +184,7 @@ class GMVAE:
         cat_loss = 0.
         gauss_loss = 0.
 
-        accuracy = 0.
+        reachy = 0.
         nmi = 0.
         num_batches = 0.
 
@@ -223,14 +227,17 @@ class GMVAE:
         true_labels = torch.cat(true_labels_list, dim=0)
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
+        test_entity_to_block = blocks_by_entities(self.num_classes, predicted_labels, true_labels)
+
         # compute metrics
-        accuracy = 100.0 * accuracy_score(self.num_classes, predicted_labels, true_labels)
+        reachy = 100.0 * reachability_score(self.num_classes, predicted_labels, true_labels)
         dispersal = 100.0 * dispersal_score(self.num_classes, predicted_labels, true_labels)
+        accuracy = blocking_accuracy(self.entity_to_block, test_entity_to_block)
 
         if return_loss:
-            return total_loss, recon_loss, gauss_loss, cat_loss, accuracy, dispersal
+            return total_loss, recon_loss, gauss_loss, cat_loss, reachy, dispersal
         else:
-            return accuracy.item(), dispersal.item(), predicted_labels.cpu().numpy()
+            return reachy.item(), dispersal.item(), accuracy, predicted_labels.cpu().numpy()
 
     def train(self, train_loader, val_loader):
         """Train the model
@@ -362,7 +369,7 @@ class GMVAE:
         plt.scatter(features[:, 0], features[:, 1], c=labels, marker='o',
                     edgecolor='none', cmap=plt.cm.get_cmap('jet', 10), s=10)
         plt.colorbar()
-        if (save):
+        if save:
             fig.savefig('latent_space.png')
         return fig
 
