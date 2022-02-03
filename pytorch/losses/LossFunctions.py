@@ -49,6 +49,12 @@ class LossFunctions:
         """
         if rec_type == 'mse':
             loss = (real - predicted).pow(2)
+        elif rec_type == 'mae':
+            loss = torch.abs(real - predicted)
+        elif rec_type == 'cosine':
+            cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+            loss = -1 * cos(real, predicted)
+            return loss.mean()
         elif rec_type == 'bce':
             loss = F.binary_cross_entropy(predicted, real, reduction='none')
         else:
