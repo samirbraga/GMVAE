@@ -46,8 +46,6 @@ class GMVAEBlocking:
         self.decay_temp_rate = args.decay_temp_rate
         self.gumbel_temp = self.init_temp
 
-        self.entity_to_block = {}
-
         self.network = GMVAENet(self.input_size, self.gaussian_size, self.num_classes)
         self.losses = LossFunctions()
 
@@ -159,8 +157,6 @@ class GMVAEBlocking:
         true_labels = torch.cat(true_labels_list, dim=0)
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
-        self.entity_to_block = blocks_by_entities(self.num_classes, true_labels, predicted_labels)
-
         # compute metrics
         reachy = 100.0 * reachability_score(self.num_classes, predicted_labels, true_labels)
         dispersal = 100.0 * dispersal_score(self.num_classes, predicted_labels, true_labels)
@@ -227,17 +223,14 @@ class GMVAEBlocking:
         true_labels = torch.cat(true_labels_list, dim=0)
         predicted_labels = torch.cat(predicted_labels_list, dim=0)
 
-        test_entity_to_block = blocks_by_entities(self.num_classes, true_labels, predicted_labels)
-
         # compute metrics
         reachy = 100.0 * reachability_score(self.num_classes, predicted_labels, true_labels)
         dispersal = 100.0 * dispersal_score(self.num_classes, predicted_labels, true_labels)
-        accuracy = blocking_accuracy(self.entity_to_block, test_entity_to_block)
 
         if return_loss:
             return total_loss, recon_loss, gauss_loss, cat_loss, reachy, dispersal
         else:
-            return reachy.item(), dispersal.item(), accuracy, predicted_labels.cpu().numpy()
+            return reachy.item(), dispersal.item(), predicted_labels.cpu().numpy()
 
     def train(self, train_loader, val_loader):
         """Train the model
