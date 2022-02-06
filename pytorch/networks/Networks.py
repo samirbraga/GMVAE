@@ -36,6 +36,10 @@ class InferenceNet(StorableModel):
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
             GumbelSoftmax(512, y_dim)
         ])
 
@@ -92,6 +96,10 @@ class GenerativeNet(StorableModel):
         # p(x|z)
         self.generative_pxz = torch.nn.ModuleList([
             nn.Linear(z_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
