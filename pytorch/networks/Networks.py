@@ -95,8 +95,7 @@ class GenerativeNet(StorableModel):
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(512, x_dim),
-            torch.nn.Sigmoid()
+            nn.Linear(512, x_dim)
         ])
 
     # p(z|y)
